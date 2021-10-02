@@ -5,7 +5,6 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageChannel;
-import net.dv8tion.jda.api.entities.SelfUser;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
@@ -13,51 +12,41 @@ import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
-import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.managers.AudioManager;
-import net.dv8tion.jda.api.requests.GatewayIntent;
-import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import net.dv8tion.jda.api.audio.AudioReceiveHandler;
-import net.dv8tion.jda.api.audio.CombinedAudio;
 
 import javax.security.auth.login.LoginException;
+
 import java.util.EnumSet;
 
 /**
  * Hello world!
  *
  */
-public class App extends ListenerAdapter implements AudioReceiveHandler {
-    private byte[] opusAudio;
-    private byte[] wavAudio;
-
-    private final Queue<byte[]> queue = new ConcurrentLinkedQueue<>();
+public class App extends ListenerAdapter {
 
     public static void main(String[] args) throws LoginException {
-        JDA jda = JDABuilder
-                .createDefault(System.getenv("TOKEN")) // slash commands don't need any intents
+        JDA jda = JDABuilder.createDefault(System.getenv("TOKEN")) // slash commands don't need any intents
                 .addEventListeners(new App()).build();
 
-                System.out.println(jda.getInviteUrl(EnumSet.noneOf(Permission.class)));
+        System.out.println(jda.getInviteUrl(EnumSet.noneOf(Permission.class)));
         // These commands take up to an hour to be activated after
         // creation/update/delete
         //CommandListUpdateAction commands = jda.updateCommands();
 
         // Moderation commands with required options
-        //commands.addCommands(new CommandData("join", "Joins the voice channel you are connected in"));
+        // commands.addCommands(new CommandData("join", "Joins the voice channel you are
+        // connected in"));
+
+        /*commands.addCommands(new CommandData("clip", "Clip your voice chat")
+            .addOptions(new OptionData(OptionType.INTEGER, "time", "The amount of time you want to clip in seconds")
+                .addChoice("5 Seconds", 5)
+                .addChoice("15 Seconds", 15)
+                .addChoice("30 Seconds", 30)
+                .addChoice("60 Seconds", 60))
+        );*/
 
         // Send the new set of commands to discord, this will override any existing
         // global commands with the new set provided here
@@ -83,17 +72,24 @@ public class App extends ListenerAdapter implements AudioReceiveHandler {
                     return;
                 } else if (!event.getGuild().getSelfMember().hasPermission(voiceChannel, Permission.VOICE_CONNECT)) {
                     event.reply("I am not allowed to join voice channels").setEphemeral(true).queue();
-                }
-                else {
+                } else {
                     if (event.getGuild().getSelfMember().getVoiceState().getChannel() != null) {
                         audioManager.closeAudioConnection();
                         event.reply("Left").setEphemeral(true).queue();
                     } else {
                         voiceChannel.getBitrate();
                         audioManager.openAudioConnection(voiceChannel);
+                        // initalize the audio reciever listener
+                        audioManager.setReceivingHandler(new AudioReceiveListener(1, voiceChannel));
                         event.reply("Joined").queue();
                     }
                 }
+                break;
+            case "clip":
+                int time = Integer.parseInt(event.getOption("time").getAsString());
+                File file = ((AudioReceiveListener) event.getGuild().getAudioManager().getReceivingHandler()).createFile(time);
+                event.reply("Here is your recording:").addFile(file).queue();
+                
                 break;
             default:
                 event.reply("I can't handle that command right now :(").setEphemeral(true).queue();
@@ -179,93 +175,5 @@ public class App extends ListenerAdapter implements AudioReceiveHandler {
                         Button.danger(userId + ":prune:" + amount, "Yes!")) // the first parameter is the component id
                                                                             // we use in onButtonClick above
                 .queue();
-    }
-
-    private void rawToWave(final File rawFile, final File waveFile, int bitrate) throws IOException {
-
-        byte[] rawData = new byte[(int) rawFile.length()];
-        DataInputStream input = null;
-        try {
-            input = new DataInputStream(new FileInputStream(rawFile));
-            input.read(rawData);
-        } finally {
-            if (input != null) {
-                input.close();
-            }
-        }
-    
-        DataOutputStream output = null;
-        try {
-            output = new DataOutputStream(new FileOutputStream(waveFile));
-            // WAVE header
-            // see http://ccrma.stanford.edu/courses/422/projects/WaveFormat/
-            writeString(output, "RIFF"); // chunk id
-            writeInt(output, 36 + rawData.length); // chunk size
-            writeString(output, "WAVE"); // format
-            writeString(output, "fmt "); // subchunk 1 id
-            writeInt(output, 16); // subchunk 1 size
-            writeShort(output, (short) 1); // audio format (1 = PCM)
-            writeShort(output, (short) 1); // number of channels
-            writeInt(output, 44100); // sample rate
-            writeInt(output, bitrate / 8); // byte rate
-            writeShort(output, (short) 2); // block align
-            writeShort(output, (short) 16); // bits per sample
-            writeString(output, "data"); // subchunk 2 id
-            writeInt(output, rawData.length); // subchunk 2 size
-            // Audio data (conversion big endian -> little endian)
-            short[] shorts = new short[rawData.length / 2];
-            ByteBuffer.wrap(rawData).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts);
-            ByteBuffer bytes = ByteBuffer.allocate(shorts.length * 2);
-            for (short s : shorts) {
-                bytes.putShort(s);
-            }
-    
-            output.write(fullyReadFileToBytes(rawFile));
-        } finally {
-            if (output != null) {
-                output.close();
-            }
-        }
-    }
-        byte[] fullyReadFileToBytes(File f) throws IOException {
-        int size = (int) f.length();
-        byte bytes[] = new byte[size];
-        byte tmpBuff[] = new byte[size];
-        FileInputStream fis= new FileInputStream(f);
-        try { 
-    
-            int read = fis.read(bytes, 0, size);
-            if (read < size) {
-                int remain = size - read;
-                while (remain > 0) {
-                    read = fis.read(tmpBuff, 0, remain);
-                    System.arraycopy(tmpBuff, 0, bytes, size - remain, read);
-                    remain -= read;
-                } 
-            } 
-        }  catch (IOException e){
-            throw e;
-        } finally { 
-            fis.close();
-        } 
-    
-        return bytes;
-    } 
-    private void writeInt(final DataOutputStream output, final int value) throws IOException {
-        output.write(value >> 0);
-        output.write(value >> 8);
-        output.write(value >> 16);
-        output.write(value >> 24);
-    }
-    
-    private void writeShort(final DataOutputStream output, final short value) throws IOException {
-        output.write(value >> 0);
-        output.write(value >> 8);
-    }
-    
-    private void writeString(final DataOutputStream output, final String value) throws IOException {
-        for (int i = 0; i < value.length(); i++) {
-            output.write(value.charAt(i));
-        }
     }
 }
