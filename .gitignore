@@ -1,3 +1,6 @@
 # Ignore unecessary files
 
 .vscode
+.settings
+.wav
+.DS_Store
