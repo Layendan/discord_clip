@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.SelfUser;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
 import net.dv8tion.jda.api.events.interaction.ButtonClickEvent;
@@ -47,25 +48,25 @@ public class App extends ListenerAdapter implements AudioReceiveHandler {
 
     public static void main(String[] args) throws LoginException {
         JDA jda = JDABuilder
-                .createLight(System.getenv("TOKEN"),
-                        EnumSet.noneOf(GatewayIntent.class)) // slash commands don't need any intents
+                .createDefault(System.getenv("TOKEN")) // slash commands don't need any intents
                 .addEventListeners(new App()).build();
 
                 System.out.println(jda.getInviteUrl(EnumSet.noneOf(Permission.class)));
         // These commands take up to an hour to be activated after
         // creation/update/delete
-        CommandListUpdateAction commands = jda.updateCommands();
+        //CommandListUpdateAction commands = jda.updateCommands();
 
         // Moderation commands with required options
-        commands.addCommands(new CommandData("join", "Joins the voice channel you are connected in"));
+        //commands.addCommands(new CommandData("join", "Joins the voice channel you are connected in"));
 
         // Send the new set of commands to discord, this will override any existing
         // global commands with the new set provided here
-        commands.queue();
+        //commands.queue();
     }
 
     @Override
     public void onSlashCommand(SlashCommandEvent event) {
+        System.out.println(event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_WRITE));
         // Only accept user commands
         if (event.getUser().isBot())
             return;
@@ -78,14 +79,20 @@ public class App extends ListenerAdapter implements AudioReceiveHandler {
                 AudioManager audioManager = event.getGuild().getAudioManager();
                 // User is not in a voice channel
                 if (voiceChannel == null) {
-                    event.reply("You are not connected to a voice channel!");
+                    event.reply("You are not connected to a voice channel!").setEphemeral(true).queue();
                     return;
                 } else if (!event.getGuild().getSelfMember().hasPermission(voiceChannel, Permission.VOICE_CONNECT)) {
-                    event.reply("I am not allowed to join voice channels");
+                    event.reply("I am not allowed to join voice channels").setEphemeral(true).queue();
                 }
                 else {
-                    voiceChannel.getBitrate();
-                    audioManager.openAudioConnection(voiceChannel);
+                    if (event.getGuild().getSelfMember().getVoiceState().getChannel() != null) {
+                        audioManager.closeAudioConnection();
+                        event.reply("Left").setEphemeral(true).queue();
+                    } else {
+                        voiceChannel.getBitrate();
+                        audioManager.openAudioConnection(voiceChannel);
+                        event.reply("Joined").queue();
+                    }
                 }
                 break;
             default:
