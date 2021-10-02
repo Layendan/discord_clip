@@ -4,7 +4,6 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.VoiceChannel;
@@ -14,15 +13,12 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
-import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.Button;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 
 import javax.security.auth.login.LoginException;
 import java.util.EnumSet;
-
-import static net.dv8tion.jda.api.interactions.commands.OptionType.*;
 
 /**
  * Hello world!
@@ -31,10 +27,11 @@ import static net.dv8tion.jda.api.interactions.commands.OptionType.*;
 public class App extends ListenerAdapter {
     public static void main(String[] args) throws LoginException {
         JDA jda = JDABuilder
-                .createLight("ODkzNzE3NTM5Nzk0ODYyMTIw.YVfhUQ.vCCpNhMFQQgk0wbaLVJsbzeQHhI",
+                .createLight(System.getenv("TOKEN"),
                         EnumSet.noneOf(GatewayIntent.class)) // slash commands don't need any intents
                 .addEventListeners(new App()).build();
 
+                System.out.println(jda.getInviteUrl(EnumSet.noneOf(Permission.class)));
         // These commands take up to an hour to be activated after
         // creation/update/delete
         CommandListUpdateAction commands = jda.updateCommands();
