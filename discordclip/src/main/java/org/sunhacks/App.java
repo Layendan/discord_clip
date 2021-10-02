@@ -16,6 +16,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.Button;
+import net.dv8tion.jda.api.managers.AudioManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 
@@ -58,6 +59,7 @@ public class App extends ListenerAdapter {
         switch (event.getName()) {
             case "join":
                 VoiceChannel voiceChannel = event.getMember().getVoiceState().getChannel();
+                AudioManager audioManager = event.getGuild().getAudioManager();
                 // User is not in a voice channel
                 if (voiceChannel == null) {
                     event.reply("You are not connected to a voice channel!");
@@ -65,7 +67,9 @@ public class App extends ListenerAdapter {
                 } else if (!event.getGuild().getSelfMember().hasPermission(voiceChannel, Permission.VOICE_CONNECT)) {
                     event.reply("I am not allowed to join voice channels");
                 }
-
+                else {
+                    audioManager.openAudioConnection(voiceChannel);
+                }
                 break;
             default:
                 event.reply("I can't handle that command right now :(").setEphemeral(true).queue();
