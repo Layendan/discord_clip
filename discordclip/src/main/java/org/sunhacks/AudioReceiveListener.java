@@ -18,7 +18,7 @@ import java.io.IOException;
 public class AudioReceiveListener implements AudioReceiveHandler {
     private List<byte[]> receivedBytes = new ArrayList<>();
     private double volume;
-    private static final int MAX_TIME = 30 * 1000 /20; // 30 seconds
+    private static final int MAX_TIME = 30 * 1000 / 20; // 30 seconds
 
     public AudioReceiveListener(double volume, VoiceChannel voiceChannel) {
         this.volume = volume;
@@ -48,34 +48,28 @@ public class AudioReceiveListener implements AudioReceiveHandler {
     }
 
     private void getWavFile(File outFile, byte[] decodedData) throws IOException {
-        AudioSystem.write(new AudioInputStream(new ByteArrayInputStream(decodedData), 
-                AudioReceiveHandler.OUTPUT_FORMAT, decodedData.length),
-                AudioFileFormat.Type.WAVE, outFile);
+        AudioSystem.write(new AudioInputStream(new ByteArrayInputStream(decodedData), AudioReceiveHandler.OUTPUT_FORMAT,
+                decodedData.length), AudioFileFormat.Type.WAVE, outFile);
 
     }
 
     static String getAlphaNumericString(int n) {
         // chose a Character random from this String
-        String AlphaNumericString = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                    + "0123456789"
-                                    + "abcdefghijklmnopqrstuvxyz";
-  
+        String AlphaNumericString = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789" + "abcdefghijklmnopqrstuvxyz";
+
         // create StringBuffer size of AlphaNumericString
         StringBuilder sb = new StringBuilder(n);
-  
+
         for (int i = 0; i < n; i++) {
-  
+
             // generate a random number between
             // 0 to AlphaNumericString variable length
-            int index
-                = (int)(AlphaNumericString.length()
-                        * Math.random());
-  
+            int index = (int) (AlphaNumericString.length() * Math.random());
+
             // add Character one by one in end of sb
-            sb.append(AlphaNumericString
-                          .charAt(index));
+            sb.append(AlphaNumericString.charAt(index));
         }
-  
+
         return sb.toString();
     }
 
@@ -84,31 +78,31 @@ public class AudioReceiveListener implements AudioReceiveHandler {
         int packetCount = (seconds * 1000) / 20; // number of milliseconds you want to record / data sent every 20ms
         File file;
         try {
-            int size=0;
+            int size = 0;
             List<byte[]> packets = new ArrayList<>();
-            int lastPacket = receivedBytes.size() - packetCount;
+            int lastPacket = receivedBytes.size() - packetCount < 0 ? 0 : receivedBytes.size() - packetCount;
 
             // add audio data (receivedBytes) for specified length of time (packetCount)
             for (int x = receivedBytes.size(); x > lastPacket; x--) {
-                packets.add(0,receivedBytes.get(x - 1));
+                packets.add(0, receivedBytes.get(x - 1));
             }
 
             for (byte[] bs : packets) {
-                size+=bs.length;
+                size += bs.length;
             }
-            byte[] decodedData=new byte[size];
-            int i=0;
+            byte[] decodedData = new byte[size];
+            int i = 0;
             for (byte[] bs : packets) {
                 for (int j = 0; j < bs.length; j++) {
-                    decodedData[i++]=bs[j];
-                }  
+                    decodedData[i++] = bs[j];
+                }
             }
 
             file = new File(getAlphaNumericString(16) + ".wav");
             file.createNewFile();
-             
+
             getWavFile(file, decodedData);
-        } catch (IOException|OutOfMemoryError e) {
+        } catch (IOException | OutOfMemoryError e) {
             file = null;
             e.printStackTrace();
         }
@@ -116,4 +110,3 @@ public class AudioReceiveListener implements AudioReceiveHandler {
         return file;
     }
 }
-
