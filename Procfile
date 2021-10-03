@@ -1,1 +1,1 @@
-worker: java $JAVA_OPTS -jar app.jar
+worker: java $JAVA_OPTS -jar discord_clip.jar
